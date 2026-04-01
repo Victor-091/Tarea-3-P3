@@ -1,0 +1,81 @@
+from flask import Flask, request, jsonify
+from models import User
+
+app = Flask(__name__)
+
+# Base de datos temporal
+users = []
+user_id_counter = 1
+
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({
+        'message': 'CRUD API with Flask',
+        'endpoints': [
+            'GET / - Informacion',
+            'POST /users - Crear usuario',
+            'GET /users - Listar usuarios',
+            'GET /users/<id> - Obtener usuario',
+            'PUT /users/<id> - Actualizar usuario',
+            'DELETE /users/<id> - Eliminar usuario'
+        ]
+    })
+
+@app.route('/users', methods=['POST'])
+def create_user():
+    global user_id_counter
+    data = request.get_json()
+    
+    if not data or 'name' not in data or 'email' not in data:
+        return jsonify({'error': 'Name and email are required'}), 400
+    
+    user = User(user_id_counter, data['name'], data['email'])
+    users.append(user)
+    user_id_counter += 1
+    
+    return jsonify(user.to_dict()), 201
+
+@app.route('/users', methods=['GET'])
+def get_users():
+    return jsonify([user.to_dict() for user in users])
+
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    user = next((u for u in users if u.id == user_id), None)
+    
+    if user:
+        return jsonify(user.to_dict())
+    
+    return jsonify({'error': 'User not found'}), 404
+
+@app.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    user = next((u for u in users if u.id == user_id), None)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    data = request.get_json()
+    
+    if 'name' in data:
+        user.name = data['name']
+    
+    if 'email' in data:
+        user.email = data['email']
+    
+    return jsonify(user.to_dict())
+
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    global users
+    user = next((u for u in users if u.id == user_id), None)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    users = [u for u in users if u.id != user_id]
+    
+    return jsonify({'message': 'User deleted successfully'}), 200
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
